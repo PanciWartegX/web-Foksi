@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Anggota - FOKSI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <div style="text-align: right; margin-bottom: 10px;">
+            <button onclick="logout()" style="width: auto; background: #555; font-size: 0.8rem;">Logout</button>
+        </div>
+        
+        <h2>Formulir Absensi</h2>
+        
+        <div id="status-panel" class="status-box status-closed">
+            Memuat Status...
+        </div>
+
+        <div id="member-info" style="margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+            </div>
+
+        <form id="attendanceForm" style="display: none;">
+            <div class="form-group">
+                <label>Status Kehadiran</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="status" value="H" required> Hadir</label>
+                    <label><input type="radio" name="status" value="I"> Izin</label>
+                    <label><input type="radio" name="status" value="S"> Sakit</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Keterangan (Opsional)</label>
+                <textarea id="keterangan" rows="3" placeholder="Isi jika Izin/Sakit"></textarea>
+            </div>
+
+            <button type="submit">KIRIM ABSENSI</button>
+        </form>
+
+        <div id="already-absent" style="display: none; text-align: center; color: green;">
+            <h3>✅ Anda Sudah Absen</h3>
+            <p>Terima kasih telah mengisi kehadiran.</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkSession } from './script.js';
+        import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+        const user = checkSession('member');
+
+        // Tampilkan Info User
+        document.getElementById('member-info').innerHTML = `
+            <strong>${user.nama}</strong><br>
+            <small>${user.jabatan} | ${user.regional} | ${user.sekolah}</small>
+        `;
+
+        async function initMember() {
+            const statusPanel = document.getElementById('status-panel');
+            const form = document.getElementById('attendanceForm');
+            const alreadyDiv = document.getElementById('already-absent');
+
+            try {
+                // 1. Cek Apakah Sudah Absen
+                // Kita simpan absensi dengan ID = username user agar 1 akun = 1 record
+                const myAbsenRef = doc(db, "attendance", user.username);
+                const myAbsenSnap = await getDoc(myAbsenRef);
+
+                // 2. Ambil Pengaturan Jadwal
+                const settingsRef = doc(db, "settings", "absensi");
+                const settingsSnap = await getDoc(settingsRef);
+
+                if (!settingsSnap.exists()) {
+                    statusPanel.innerText = "Sistem Absensi Belum Diatur";
+                    return;
+                }
+
+                const config = settingsSnap.data();
+                
+                // Cek apakah user sudah absen HARI INI (sesuai tanggal config)
+                if (myAbsenSnap.exists() && myAbsenSnap.data().tanggal === config.tanggal) {
+                    statusPanel.className = 'status-box status-open';
+                    statusPanel.innerText = "Status: SUDAH ABSEN";
+                    alreadyDiv.style.display = 'block';
+                    return;
+                }
+
+                // 3. Cek Waktu (Jam Buka - Tutup)
+                const now = new Date();
+                // Format tanggal hari ini YYYY-MM-DD
+                const todayStr = now.toISOString().split('T')[0];
+
+                // Validasi Tanggal
+                if (todayStr !== config.tanggal) {
+                    statusPanel.innerText = `Absensi dibuka tanggal ${config.tanggal}`;
+                    return;
+                }
+
+                // Validasi Jam
+                const currentTime = now.toTimeString().slice(0, 5); // HH:MM
+                if (currentTime >= config.jamBuka && currentTime <= config.jamTutup) {
+                    statusPanel.className = 'status-box status-open';
+                    statusPanel.innerText = `ABSENSI DIBUKA (${config.jamBuka} - ${config.jamTutup})`;
+                    form.style.display = 'block'; // Tampilkan form
+                } else {
+                    statusPanel.className = 'status-box status-closed';
+                    if(currentTime < config.jamBuka) {
+                         statusPanel.innerText = `Absensi Belum Dibuka (Mulai ${config.jamBuka})`;
+                    } else {
+                         statusPanel.innerText = "Absensi Sudah Ditutup";
+                    }
+                }
+
+                // 4. Handle Submit
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const statusVal = document.querySelector('input[name="status"]:checked').value;
+                    const ketVal = document.getElementById('keterangan').value;
+
+                    const absenData = {
+                        username: user.username,
+                        nama: user.nama,
+                        jabatan: user.jabatan,
+                        regional: user.regional,
+                        sekolah: user.sekolah,
+                        status: statusVal,
+                        keterangan: ketVal,
+                        tanggal: config.tanggal,
+                        jam: new Date().toLocaleTimeString('id-ID'),
+                        timestamp: new Date()
+                    };
+
+                    await setDoc(myAbsenRef, absenData);
+                    alert("Absensi Berhasil Dikirim!");
+                    location.reload();
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusPanel.innerText = "Error memuat sistem.";
+            }
+        }
+
+        initMember();
+    </script>
+</body>
+</html>
