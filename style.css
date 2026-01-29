@@ -39,3 +39,35 @@ button:hover {
   background: #fee2e2;
   color: #991b1b;
 }
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 14px;
+}
+
+thead {
+  background: #fee2e2;
+}
+
+thead th {
+  padding: 12px;
+  text-align: left;
+  color: #7f1d1d;
+  font-weight: 600;
+}
+
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+tbody tr:hover {
+  background: #fef2f2;
+}
