@@ -1,29 +1,29 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Absensi FOKSI</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>Absensi FOKSI</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div class="container">
-        <h1>Absensi FOKSI</h1>
-        <form onsubmit="handleLogin(event)">
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="username" required placeholder="Masukkan Username">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" required placeholder="Masukkan Password">
-            </div>
-            <p id="error-msg" style="color: red; display: none; margin-bottom: 10px; text-align: center;"></p>
-            <button type="submit">LOGIN</button>
-        </form>
-    </div>
+  <h2>Absensi FOKSI</h2>
 
-    <script type="module" src="script.js"></script>
+  <form id="absensiForm">
+    <input type="text" name="nama" placeholder="Nama" required>
+    <input type="text" name="jabatan" placeholder="Jabatan" required>
+    <input type="text" name="regional" placeholder="Regional" required>
+
+    <select name="status" required>
+      <option value="">Pilih Status</option>
+      <option value="Hadir">Hadir</option>
+      <option value="Izin">Izin</option>
+      <option value="Sakit">Sakit</option>
+    </select>
+
+    <button type="submit">Kirim Absensi</button>
+  </form>
+
+<script src="script.js"></script>
 </body>
 </html>
