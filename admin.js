@@ -32,3 +32,28 @@ setAbsensi.onclick = async () => {
 
   alert("Jadwal absensi disimpan");
 };
+
+<div class="section">
+  <h3>Data Absensi</h3>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Nama</th>
+          <th>Jabatan</th>
+          <th>Regional</th>
+          <th>Sekolah</th>
+          <th>Status</th>
+          <th>Keterangan</th>
+          <th>Tanggal</th>
+          <th>Jam</th>
+        </tr>
+      </thead>
+      <tbody id="tableAbsensi">
+        <!-- data otomatis -->
+      </tbody>
+    </table>
+  </div>
+</div>
+  
