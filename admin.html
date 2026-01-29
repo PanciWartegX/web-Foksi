@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - FOKSI</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <div class="container wide">
+        <div class="dashboard-header">
+            <h2>Panel Admin FOKSI</h2>
+            <button onclick="logout()" style="width: auto; background: #333;">Logout</button>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="switchTab('tab-settings')">Pengaturan Absen</button>
+            <button class="nav-btn" onclick="switchTab('tab-users')">Tambah Akun</button>
+            <button class="nav-btn" onclick="switchTab('tab-data')">Data Absensi</button>
+        </div>
+
+        <div id="tab-settings" class="section active">
+            <h3>Atur Jadwal Absensi</h3>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label>Nama Kegiatan</label>
+                    <input type="text" id="kegiatan" required>
+                </div>
+                <div class="form-group">
+                    <label>Tanggal</label>
+                    <input type="date" id="tanggal" required>
+                </div>
+                <div class="form-group" style="display: flex; gap: 10px;">
+                    <div style="flex:1">
+                        <label>Jam Buka</label>
+                        <input type="time" id="jamBuka" required>
+                    </div>
+                    <div style="flex:1">
+                        <label>Jam Tutup</label>
+                        <input type="time" id="jamTutup" required>
+                    </div>
+                </div>
+                <button type="submit">Simpan & Buka Absensi</button>
+            </form>
+        </div>
+
+        <div id="tab-users" class="section">
+            <h3>Registrasi Anggota</h3>
+            <form id="addUserForm">
+                <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="regName" required>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="regUser" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="text" id="regPass" required>
+                </div>
+                <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" id="regJabatan" required>
+                </div>
+                <div class="form-group">
+                    <label>Regional</label>
+                    <input type="text" id="regRegional" required>
+                </div>
+                <div class="form-group">
+                    <label>Sekolah</label>
+                    <input type="text" id="regSekolah" required>
+                </div>
+                <button type="submit">Buat Akun</button>
+            </form>
+        </div>
+
+        <div id="tab-data" class="section">
+            <h3>Rekap Absensi</h3>
+            <button class="export-btn" onclick="exportToExcel()">Download Excel</button>
+            <button class="secondary" onclick="loadAttendanceData()" style="width: auto; float: right;">Refresh Data</button>
+            <div style="overflow-x: auto;">
+                <table id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Jabatan</th>
+                            <th>Regional</th>
+                            <th>Sekolah</th>
+                            <th>Status</th>
+                            <th>Waktu Absen</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, checkSession } from './script.js';
+        import { doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+        // Cek Admin
+        const user = checkSession('admin');
+
+        // --- UI Logic ---
+        window.switchTab = (tabId) => {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+            
+            if(tabId === 'tab-data') loadAttendanceData();
+        }
+
+        // --- 1. Simpan Pengaturan Absensi ---
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const config = {
+                kegiatan: document.getElementById('kegiatan').value,
+                tanggal: document.getElementById('tanggal').value,
+                jamBuka: document.getElementById('jamBuka').value,
+                jamTutup: document.getElementById('jamTutup').value
+            };
+            
+            try {
+                await setDoc(doc(db, "settings", "absensi"), config);
+                alert("Jadwal Absensi Berhasil Disimpan!");
+            } catch (err) {
+                console.error(err);
+                alert("Gagal menyimpan pengaturan.");
+            }
+        });
+
+        // --- 2. Tambah User ---
+        document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newUser = {
+                nama: document.getElementById('regName').value,
+                username: document.getElementById('regUser').value,
+                password: document.getElementById('regPass').value, // Simple storage
+                jabatan: document.getElementById('regJabatan').value,
+                regional: document.getElementById('regRegional').value,
+                sekolah: document.getElementById('regSekolah').value,
+                role: 'member'
+            };
+
+            try {
+                // Gunakan username sebagai ID dokumen agar unik
+                await setDoc(doc(db, "users", newUser.username), newUser);
+                alert("Akun berhasil dibuat!");
+                document.getElementById('addUserForm').reset();
+            } catch (err) {
+                console.error(err);
+                alert("Gagal membuat akun.");
+            }
+        });
+
+        // --- 3. Load Data & Logika ALPA ---
+        window.loadAttendanceData = async () => {
+            const tbody = document.querySelector('#attendanceTable tbody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Memuat data...</td></tr>';
+
+            try {
+                // Ambil semua user member
+                const usersSnapshot = await getDocs(collection(db, "users"));
+                const allMembers = [];
+                usersSnapshot.forEach(doc => {
+                    const d = doc.data();
+                    if(d.role === 'member') allMembers.push(d);
+                });
+
+                // Ambil data absensi hari ini (disederhanakan: ambil semua record di collection 'attendance')
+                // *Idealnya filter berdasarkan tanggal kegiatan aktif*
+                const settingsSnap = await getDoc(doc(db, "settings", "absensi"));
+                const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+                
+                const attSnapshot = await getDocs(collection(db, "attendance"));
+                const attendanceMap = {};
+                attSnapshot.forEach(doc => {
+                    // ID dokumen absensi adalah username
+                    attendanceMap[doc.id] = doc.data();
+                });
+
+                let html = '';
+                allMembers.forEach(member => {
+                    const att = attendanceMap[member.username];
+                    let status = 'A (Alpa)';
+                    let waktu = '-';
+                    let ket = '-';
+                    let style = 'color: red; font-weight: bold;';
+
+                    if (att) {
+                        // Jika ada data absensi, tapi cek tanggalnya (opsional filter tanggal)
+                        if(att.tanggal === settings.tanggal) {
+                            status = att.status;
+                            waktu = att.jam;
+                            ket = att.keterangan || '-';
+                            style = status === 'H' ? 'color: green; font-weight: bold;' : 'color: orange; font-weight: bold;';
+                        }
+                    }
+
+                    html += `
+                        <tr>
+                            <td>${member.nama}</td>
+                            <td>${member.jabatan}</td>
+                            <td>${member.regional}</td>
+                            <td>${member.sekolah}</td>
+                            <td style="${style}">${status}</td>
+                            <td>${waktu}</td>
+                            <td>${ket}</td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html;
+
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="7">Gagal memuat data.</td></tr>';
+            }
+        };
+
+        // --- 4. Export Excel ---
+        window.exportToExcel = () => {
+            const table = document.getElementById("attendanceTable");
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Absensi FOKSI"});
+            XLSX.writeFile(wb, "Data_Absensi_FOKSI.xlsx");
+        }
+    </script>
+</body>
+</html>
