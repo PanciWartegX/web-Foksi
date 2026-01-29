@@ -56,4 +56,45 @@ setAbsensi.onclick = async () => {
     </table>
   </div>
 </div>
-  
+
+import {
+  collection,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+async function loadAbsensi() {
+  const tbody = document.getElementById("tableAbsensi");
+  tbody.innerHTML = "";
+
+  const querySnap = await getDocs(collection(db, "absensi"));
+
+  querySnap.forEach(docu => {
+    const d = docu.data();
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${d.nama || "-"}</td>
+      <td>${d.jabatan || "-"}</td>
+      <td>${d.regional || "-"}</td>
+      <td>${d.sekolah || "-"}</td>
+      <td>
+        <span class="badge ${statusClass(d.status)}">
+          ${d.status}
+        </span>
+      </td>
+      <td>${d.keterangan || "-"}</td>
+      <td>${d.waktu?.toDate().toLocaleDateString() || "-"}</td>
+      <td>${d.waktu?.toDate().toLocaleTimeString() || "-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function statusClass(s) {
+  if (s === "H") return "hadir";
+  if (s === "I") return "izin";
+  if (s === "S") return "sakit";
+  return "alpa";
+}
+
+loadAbsensi();
